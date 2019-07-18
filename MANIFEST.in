@@ -1,0 +1,5 @@
+include LICENCE
+include *.md
+include *.png
+recursive-include gdoctableapppy *
+recursive-include tests *
