@@ -23,11 +23,12 @@ Google Docs API has been released. When I used this API, I found that it is very
 
 ## Languages
 
-I manages the tables on Google Document using several languages. So I created the libraries for 3 languages which are golang, node.js and python. Google Apps Script has Class DocumentApp. So I has never created the GAS library yet.
+I manages the tables on Google Document using several languages. So I created the libraries for 4 languages which are golang, node.js and python. Google Apps Script has Class DocumentApp. So I has never created the GAS library yet.
 
 - [go-gdoctableapp](https://github.com/tanaikech/go-gdoctableapp)
 - [node-gdoctableapp](https://github.com/tanaikech/node-gdoctableapp)
 - [gdoctableapppy](https://github.com/tanaikech/gdoctableapppy)
+- [google-docs-table-factory](https://github.com/gumatias/google-docs-table-factory) by gumatias
 
 # Install
 
