@@ -428,10 +428,17 @@ class gdoctableapp():
                             tempColsDelCell["deleteContentRange"]["range"]["startIndex"] = h["startIndex"]
                         if k == len(contents) - 1 and l == len(elements) - 1:
                             tempColsDelCell["deleteContentRange"]["range"]["endIndex"] = h["endIndex"] - 1
+
+                        # Table can have 'inlineObjectElement' apart from 'textRun'
+                        if "textRun" in h.keys():
+                            cellContent = h["textRun"]["content"]
+                        else:
+                            cellContent = "<UNSUPPORTED CONTENT>"
+
                         tempColsContent.append({
                             "startIndex": h["startIndex"],
                             "endIndex": h["endIndex"],
-                            "content": h["textRun"]["content"]
+                            "content": cellContent
                         })
 
                 tempRowsDelCell.append(tempColsDelCell)
