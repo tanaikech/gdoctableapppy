@@ -464,4 +464,8 @@ If you have any questions and commissions for me, feel free to tell me.
 
   1. Initial release.
 
+- v1.0.5 (January 21, 2020)
+
+  1. When the inline objects and tables are put in the table. An error occurred. This bug was removed by this update.
+
 [TOP](#top)

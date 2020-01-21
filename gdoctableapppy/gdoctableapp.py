@@ -11,12 +11,12 @@ This is a python library to manage the tables on Google Document using Google Do
 __author__ = "Kanshi TANAIKE (tanaike@hotmail.com)"
 __copyright__ = "Copyright 2019, Kanshi TANAIKE"
 __license__ = "MIT"
-__version__ = "1.0.0"
+__version__ = "1.0.5"
 
 import sys
 from googleapiclient.discovery import build
 
-VERSION = "1.0.0"
+VERSION = "1.0.5"
 
 
 def GetTables(resource):
@@ -422,16 +422,36 @@ class gdoctableapp():
                 tempColsContent = []
                 contents = f["content"]
                 for k, g in enumerate(contents):
-                    elements = g["paragraph"]["elements"]
-                    for l, h in enumerate(elements):
-                        if k == 0 and l == 0:
-                            tempColsDelCell["deleteContentRange"]["range"]["startIndex"] = h["startIndex"]
-                        if k == len(contents) - 1 and l == len(elements) - 1:
-                            tempColsDelCell["deleteContentRange"]["range"]["endIndex"] = h["endIndex"] - 1
+                    if "paragraph" in g.keys():
+                        elements = g["paragraph"]["elements"]
+                        for l, h in enumerate(elements):
+                            if k == 0 and l == 0:
+                                tempColsDelCell["deleteContentRange"]["range"]["startIndex"] = h["startIndex"]
+                            if k == len(contents) - 1 and l == len(elements) - 1:
+                                tempColsDelCell["deleteContentRange"]["range"]["endIndex"] = h["endIndex"] - 1
+                            cellContent = ""
+                            if "textRun" in h.keys():
+                                cellContent = h["textRun"]["content"]
+                            elif "inlineObjectElement" in h.keys():
+                                cellContent = "[INLINE OBJECT]"
+                            else:
+                                cellContent = "[UNSUPPORTED CONTENT]"
+                            tempColsContent.append({
+                                "startIndex": h["startIndex"],
+                                "endIndex": h["endIndex"],
+                                "content": cellContent
+                            })
+                    elif "table" in g.keys():
                         tempColsContent.append({
-                            "startIndex": h["startIndex"],
-                            "endIndex": h["endIndex"],
-                            "content": h["textRun"]["content"]
+                            "startIndex": g["startIndex"],
+                            "endIndex": g["endIndex"],
+                            "content": "[TABLE]"
+                        })
+                    else:
+                        tempColsContent.append({
+                            "startIndex": g["startIndex"],
+                            "endIndex": g["endIndex"],
+                            "content": "[UNSUPPORTED CONTENT]"
                         })
 
                 tempRowsDelCell.append(tempColsDelCell)
