@@ -452,23 +452,6 @@ class gdoctableapp():
                             "startIndex": g["startIndex"],
                             "endIndex": g["endIndex"],
                             "content": "[UNSUPPORTED CONTENT]"
-                    elements = g["paragraph"]["elements"]
-                    for l, h in enumerate(elements):
-                        if k == 0 and l == 0:
-                            tempColsDelCell["deleteContentRange"]["range"]["startIndex"] = h["startIndex"]
-                        if k == len(contents) - 1 and l == len(elements) - 1:
-                            tempColsDelCell["deleteContentRange"]["range"]["endIndex"] = h["endIndex"] - 1
-
-                        # Table can have 'inlineObjectElement' apart from 'textRun'
-                        if "textRun" in h.keys():
-                            cellContent = h["textRun"]["content"]
-                        else:
-                            cellContent = "<UNSUPPORTED CONTENT>"
-
-                        tempColsContent.append({
-                            "startIndex": h["startIndex"],
-                            "endIndex": h["endIndex"],
-                            "content": cellContent
                         })
 
                 tempRowsDelCell.append(tempColsDelCell)
