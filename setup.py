@@ -10,7 +10,7 @@ with open('README.md') as f:
 
 setup(
     name='gdoctableapppy',
-    version='1.0.6',
+    version='1.1.0',
     description='This is a python library to manage the tables on Google Document using Google Docs API.',
     long_description=readme,
     long_description_content_type="text/markdown",

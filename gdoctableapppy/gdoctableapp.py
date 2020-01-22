@@ -11,12 +11,15 @@ This is a python library to manage the tables on Google Document using Google Do
 __author__ = "Kanshi TANAIKE (tanaike@hotmail.com)"
 __copyright__ = "Copyright 2019, Kanshi TANAIKE"
 __license__ = "MIT"
-__version__ = "1.0.5"
+__version__ = "1.1.0"
 
+import os
 import sys
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
-VERSION = "1.0.5"
+VERSION = "1.1.0"
 
 
 def GetTables(resource):
@@ -47,6 +50,10 @@ def AppendRow(resource):
     return gdoctableapp(resource).appendRow()
 
 
+def ReplaceTextsToImages(resource):
+    return gdoctableapp(resource).replaceTextsToImages()
+
+
 class gdoctableapp():
     """This is a base class of gdoctableapppy."""
 
@@ -55,6 +62,139 @@ class gdoctableapp():
 
         if "showAPIResponse" in resource.keys() and resource["showAPIResponse"]:
             self.obj["result"]["responseFromAPIs"] = []
+
+    def __createInsertInlineImageRequest(self, startIndex, url, width, height):
+        if type(width) is str or type(height) is str or width <= 0 and height <= 0:
+            try:
+                raise ValueError(
+                    "Error: Please check 'imageWidth' and 'imageHeight'.")
+            except ValueError as err:
+                print(err)
+                sys.exit(1)
+
+        req = {
+            "insertInlineImage": {
+                "uri": url,
+                "location": {"index": startIndex}
+            }
+        }
+        if width > 0 and height > 0:
+            req["insertInlineImage"]["objectSize"] = {
+                "width": {"magnitude": width, "unit": "PT"},
+                "height": {"magnitude": height, "unit": "PT"}
+            }
+        return req
+
+    def __getTextRunContent(self, ar, h):
+        if "paragraph" in h:
+            for e in h.get("paragraph").get("elements"):
+                if "textRun" in e.keys() and self.obj["params"].get("searchText") in e.get("textRun").get("content"):
+                    ar.append(e)
+
+    def __getTableContent(self, e):
+        ar = []
+        for f in e["table"].get("tableRows"):
+            for g in f.get("tableCells"):
+                for h in g.get("content"):
+                    self.__getTextRunContent(ar, h)
+        return ar
+
+    def __deleteTempFile(self):
+        if "replaceImageFilePath" in self.obj["params"].keys() and "driveSrv" in self.obj.keys() and self.obj["tempFileId"] != "":
+            try:
+                self.obj["driveSrv"].files().delete(fileId=self.obj["tempFileId"]).execute()
+            except HttpError as err:
+                print(err)
+                sys.exit(1)
+
+    def __replaceTextsToImagesByURL(self):
+        if "searchText" not in self.obj["params"].keys() or self.obj["params"]["searchText"] == "":
+            try:
+                raise ValueError(
+                    "Error: Please set 'searchText'.")
+            except ValueError as err:
+                print(err)
+                sys.exit(1)
+
+        if "replaceImageURL" not in self.obj["params"].keys() and "replaceImageFilePath" not in self.obj["params"].keys():
+            try:
+                raise ValueError(
+                    "Error: Please set 'replaceImageURL' or 'replaceImageFilePath'.")
+            except ValueError as err:
+                print(err)
+                sys.exit(1)
+
+        allContents = self.__getDocument()
+        ar = []
+        for e in allContents:
+            if "table" in e.keys():
+                ar.extend(self.__getTableContent(e))
+            elif not self.obj["params"].get("tableOnly") and "paragraph" in e.keys():
+                self.__getTextRunContent(ar, e)
+        ar.reverse()
+        searchText = self.obj["params"].get("searchText")
+        replacedUrl = self.obj["params"].get("replaceImageURL")
+        width = self.obj["params"].get("imageWidth")
+        height = self.obj["params"].get("imageHeight")
+        requests = []
+        for e in ar:
+            content = e["textRun"]["content"]
+            if content.strip() == searchText:
+                offset = len(content) - len(content.strip())
+                requests.append({
+                    "deleteContentRange": {
+                        "range": {"startIndex": e["startIndex"], "endIndex": e["endIndex"] - offset}
+                    }
+                })
+                requests.append(self.__createInsertInlineImageRequest(e["startIndex"], replacedUrl, width, height))
+            else:
+                start = e["startIndex"] + content.find(searchText)
+                requests.append({
+                    "deleteContentRange": {
+                        "range": {"startIndex": start, "endIndex": start + len(searchText)}
+                    }
+                })
+                requests.append(self.__createInsertInlineImageRequest(start, replacedUrl, width, height))
+
+        if len(requests) > 0:
+            self.obj["requestBody"] = requests
+            self.__documentsBatchUpdate()
+        else:
+            self.obj["result"]["message"] = "'" + searchText + "' was not found."
+
+    def __uploadImageFile(self):
+        p = self.obj["params"]
+        if ("replaceImageURL" not in p.keys() or p["replaceImageURL"] == "") and "replaceImageFilePath" in p.keys() and p["replaceImageFilePath"] is not "":
+            c = p["oauth2"] if "oauth2" in p.keys() else p["service_account"] if "service_account" in p.keys() else None
+            if not c:
+                try:
+                    raise ValueError(
+                        "Error: You can use API key, OAuth2 and Service account.")
+                except ValueError as err:
+                    print(err)
+                    sys.exit(1)
+
+            try:
+                self.obj["driveSrv"] = build("drive", "v3", credentials=c)
+                metadata = {"name": os.path.basename(p["replaceImageFilePath"])}
+                media = MediaFileUpload(p["replaceImageFilePath"])
+                r1 = self.obj["driveSrv"].files().create(body=metadata, media_body=media, fields="id,webContentLink").execute()
+                self.obj["params"]["replaceImageURL"] = r1["webContentLink"]
+                self.obj["tempFileId"] = r1["id"]
+                if "showAPIResponse" in p.keys() and p["showAPIResponse"]:
+                    self.obj["result"]["responseFromAPIs"].append(r1)
+                permission = {"type": "anyone", "role": "reader"}
+                r2 = self.obj["driveSrv"].permissions().create(fileId=r1["id"], body=permission, fields="id").execute()
+                if "showAPIResponse" in p.keys() and p["showAPIResponse"]:
+                    self.obj["result"]["responseFromAPIs"].append(r2)
+            except HttpError as err:
+                print(err)
+                sys.exit(1)
+
+    def __replaceTextsToImagesMain(self):
+        self.__uploadImageFile()
+        self.__replaceTextsToImagesByURL()
+        self.__deleteTempFile()
 
     def __appendRowMain(self):
         if "values" not in self.obj["params"].keys() or not self.obj["params"]["values"]:
@@ -229,14 +369,12 @@ class gdoctableapp():
         if "deleteRows" in iObj.keys() and isinstance(iObj["deleteRows"], list) and iObj["deleteRows"]:
             iObj["deleteRows"].sort(reverse=True)
             for e in iObj["deleteRows"]:
-                requests.append({"deleteTableRow": {"tableCellLocation": {
-                                "tableStartLocation": {"index": tablePos}, "rowIndex": e}}})
+                requests.append({"deleteTableRow": {"tableCellLocation": {"tableStartLocation": {"index": tablePos}, "rowIndex": e}}})
 
         if "deleteColumns" in iObj.keys() and isinstance(iObj["deleteColumns"], list) and iObj["deleteColumns"]:
             iObj["deleteColumns"].sort(reverse=True)
             for e in iObj["deleteColumns"]:
-                requests.append({"deleteTableColumn": {"tableCellLocation": {
-                                "tableStartLocation": {"index": tablePos}, "columnIndex": e}}})
+                requests.append({"deleteTableColumn": {"tableCellLocation": {"tableStartLocation": {"index": tablePos}, "columnIndex": e}}})
 
         self.obj["requestBody"] = requests
         self.__documentsBatchUpdate()
@@ -465,20 +603,28 @@ class gdoctableapp():
         self.obj["cell1stIndex"] = valuesIndexes["content"][0][0][0]["startIndex"]
 
     def __documentsBatchUpdate(self):
-        r = self.obj["service"].documents().batchUpdate(
-            documentId=self.obj["params"]["documentId"],
-            body={"requests": self.obj["requestBody"]}).execute()
-        if "showAPIResponse" in self.obj["params"].keys() and self.obj["params"]["showAPIResponse"]:
-            self.obj["result"]["responseFromAPIs"].append(r)
-        self.obj["requestBody"] = []
+        try:
+            r = self.obj["service"].documents().batchUpdate(
+                documentId=self.obj["params"]["documentId"],
+                body={"requests": self.obj["requestBody"]}).execute()
+            if "showAPIResponse" in self.obj["params"].keys() and self.obj["params"]["showAPIResponse"]:
+                self.obj["result"]["responseFromAPIs"].append(r)
+            self.obj["requestBody"] = []
+        except HttpError as err:
+            print(err)
+            sys.exit(1)
 
     def __getDocument(self):
-        doc = self.obj["service"].documents().get(
-            documentId=self.obj["params"]["documentId"]).execute()
-        contents = doc.get("body").get("content")
-        if "showAPIResponse" in self.obj["params"].keys() and self.obj["params"]["showAPIResponse"]:
-            self.obj["result"]["responseFromAPIs"].append(contents)
-        return contents
+        try:
+            doc = self.obj["service"].documents().get(
+                documentId=self.obj["params"]["documentId"]).execute()
+            contents = doc.get("body").get("content")
+            if "showAPIResponse" in self.obj["params"].keys() and self.obj["params"]["showAPIResponse"]:
+                self.obj["result"]["responseFromAPIs"].append(contents)
+            return contents
+        except HttpError as err:
+            print(err)
+            sys.exit(1)
 
     def __getAllTables(self):
         contents = self.__getDocument()
@@ -611,4 +757,9 @@ class gdoctableapp():
 
         self.__init()
         self.__appendRowMain()
+        return self.obj["result"]
+
+    def replaceTextsToImages(self):
+        self.__init()
+        self.__replaceTextsToImagesMain()
         return self.obj["result"]
