@@ -21,9 +21,8 @@ Google Docs API has been released. When I used this API, I found that it is very
 - New table can be created by including values.
 - Append rows to the table by including values.
 - Replace texts with images.
-
-      	- The image data can be retrieved from URL.
-      	- The image data can be uploaded from the local PC.
+  - The image data can be retrieved from URL.
+  - The image data can be uploaded from the local PC.
 
 ## Languages
 
@@ -426,7 +425,7 @@ Document of OAuth2 is [here](https://developers.google.com/identity/protocols/OA
 
 ### Sample script
 
-In this sample script, the authorization process uses [the Quickstart for Node.js](https://developers.google.com/docs/api/quickstart/nodejs). You can see the detail information at there.
+In this sample script, the authorization process uses [the Quickstart for python](https://developers.google.com/docs/api/quickstart/python). You can see the detail information at there.
 
 ```python
 from __future__ import print_function
