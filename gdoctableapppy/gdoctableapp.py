@@ -64,13 +64,17 @@ class gdoctableapp():
             self.obj["result"]["responseFromAPIs"] = []
 
     def __createInsertInlineImageRequest(self, startIndex, url, width, height):
-        if type(width) is str or type(height) is str or width <= 0 and height <= 0:
-            try:
-                raise ValueError(
-                    "Error: Please check 'imageWidth' and 'imageHeight'.")
-            except ValueError as err:
-                print(err)
-                sys.exit(1)
+        try:
+            if type(width) is str or type(height) is str or width <= 0 and height <= 0:
+                try:
+                    raise ValueError(
+                        "Error: Please check 'imageWidth' and 'imageHeight'.")
+                except ValueError as err:
+                    print(err)
+                    sys.exit(1)
+        except TypeError:
+            pass 
+        
 
         req = {
             "insertInlineImage": {
@@ -78,12 +82,17 @@ class gdoctableapp():
                 "location": {"index": startIndex}
             }
         }
-        if width > 0 and height > 0:
-            req["insertInlineImage"]["objectSize"] = {
-                "width": {"magnitude": width, "unit": "PT"},
-                "height": {"magnitude": height, "unit": "PT"}
-            }
+        try:
+            if width > 0 and height > 0:
+                req["insertInlineImage"]["objectSize"] = {
+                    "width": {"magnitude": width, "unit": "PT"},
+                    "height": {"magnitude": height, "unit": "PT"}
+                }
+        except TypeError:
+            pass
+        
         return req
+        
 
     def __getTextRunContent(self, ar, h):
         if "paragraph" in h:
